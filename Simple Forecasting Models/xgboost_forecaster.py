@@ -51,6 +51,7 @@ class XGBForecaster(BaseEstimator, ClassifierMixin):
         self.X_train_ = pd.DataFrame()
         self.y_train_ = pd.DataFrame()
         self.XBGModelParams = {}
+        self.FeatureNames = []
         # Cross Val Stuff
         self.CVPredictions = []
         self.CVTrue = []
@@ -78,8 +79,12 @@ class XGBForecaster(BaseEstimator, ClassifierMixin):
     def get_cv_truelabels(self):
         return self.CVTrue
 
-    def get_feature_importances(self):
+    def get_all_feature_importances(self):
         return self.FeatureImportanceRepo
+
+    def get_cv_feature_importance(self):
+        return pd.DataFrame(np.mean(self.FeatureImportanceRepo, axis=0).reshape(1, len(self.FeatureNames)),
+                            columns=self.FeatureNames).melt().sort_values(by='value')
 
     def get_base_model(self):
         return self.BaseModel
@@ -111,6 +116,7 @@ class XGBForecaster(BaseEstimator, ClassifierMixin):
                                       'y_val': y_val_folds})
 
     def fit(self, X, y):
+        self.FeatureNames.extend(X.columns)
         X, y = check_X_y(X, y)
         self.X_train_ = X
         self.y_train_ = y
@@ -173,10 +179,12 @@ xg_params_grid = {'objective': 'binary:logistic',
                   'seed': 42,
                   'missing': None}
 
+## TUNING FEAT IMPORTANCE ITER 1 ##
+# Instantiate and train model
 forecaster = XGBForecaster()
 forecaster = forecaster.fit(X_train, y_train)
-# Generate cross val data
 forecaster.train_model_cv(xg_params_grid=xg_params_grid, n_splits=50)
+forecaster.get_cv_score()
 
 # Get log loss score
 forecaster_cv_pred = forecaster.get_cv_preds()
@@ -184,7 +192,71 @@ forecaster_cv_true = forecaster.get_cv_truelabels()
 forecaster_score = forecaster.get_cv_score()
 
 # Get feature importances
-feat_impt_log = forecaster.get_feature_importances()
+feat_impt_log = forecaster.get_all_feature_importances()
+feat_impt = forecaster.get_cv_feature_importance()
+sum(feat_impt.value)
+
+# Select features with contribution >= 2%
+select_features_1 = feat_impt[feat_impt.value >= 0.02]['variable'].to_list()
+# Subset features (11 features)
+X_train_subset, X_test_subset = X_train.loc[:, select_features_1], X_test.loc[:, select_features_1]
+
+## TUNING FEAT IMPORTANCE ITER 2 ##
+# Train new model
+forecaster2 = XGBForecaster()
+forecaster2 = forecaster2.fit(X_train_subset, y_train)
+forecaster2.train_model_cv(xg_params_grid=xg_params_grid, n_splits=50)
+forecaster2.get_cv_score()
+
+# Get feature importance
+feat_impt = forecaster2.get_cv_feature_importance()
+# Select features with contribution >= 5%
+select_features_2 = feat_impt[feat_impt.value >= 0.05]['variable'].to_list()
+# Subset features (11 features)
+X_train_subset2, X_test_subset2 = X_train.loc[:, select_features_2], X_test.loc[:, select_features_2]
+
+## TUNING FEAT IMPORTANCE ITER 3 ##
+# Train new model
+forecaster3 = XGBForecaster()
+forecaster3 = forecaster3.fit(X_train_subset2, y_train)
+forecaster3.train_model_cv(xg_params_grid=xg_params_grid, n_splits=50)
+forecaster3.get_cv_score()
+
+# Get feature importance
+feat_impt = forecaster2.get_cv_feature_importance()
+# Select features with contribution >= 9%
+select_features_3 = feat_impt[feat_impt.value >= 0.09]['variable'].to_list()
+# Subset features (11 features)
+X_train_subset3, X_test_subset3 = X_train.loc[:, select_features_3], X_test.loc[:, select_features_3]
+
+## TUNING FEAT IMPORTANCE ITER 4 ##
+# Train new model
+forecaster4 = XGBForecaster()
+forecaster4 = forecaster4.fit(X_train_subset3, y_train)
+forecaster4.train_model_cv(xg_params_grid=xg_params_grid, n_splits=50)
+forecaster4.get_cv_score()
+
+# Get feature importance
+feat_impt = forecaster4.get_cv_feature_importance()
+
+## TUNING FEAT IMPORTANCE ITER 5 - SINGLE FEATURES ##
+# SPREAD
+forecaster_spread = XGBForecaster()
+forecaster_spread = forecaster_spread.fit(X_train.loc[:, ['10Y3MTH_SPREAD']], y_train)
+forecaster_spread.train_model_cv(xg_params_grid=xg_params_grid, n_splits=50)
+forecaster_spread.get_cv_score()
+
+# FEDFUNDS_ROLMEAN
+forecaster_FFROLMEAN = XGBForecaster()
+forecaster_FFROLMEAN = forecaster_FFROLMEAN.fit(X_train.loc[:, ['FEDFUNDS_ROLMEAN3']], y_train)
+forecaster_FFROLMEAN.train_model_cv(xg_params_grid=xg_params_grid, n_splits=50)
+forecaster_FFROLMEAN.get_cv_score()
+
+# PAYEMS_3MTHCHANGE
+forecaster_PAYEMSCHANGE = XGBForecaster()
+forecaster_PAYEMSCHANGE = forecaster_PAYEMSCHANGE.fit(X_train.loc[:, ['PAYEMS_3MTHCHANGE']], y_train)
+forecaster_PAYEMSCHANGE.train_model_cv(xg_params_grid=xg_params_grid, n_splits=50)
+forecaster_PAYEMSCHANGE.get_cv_score()
 
 ## TBD ##
 # 1) Grid search
