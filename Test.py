@@ -1,5 +1,6 @@
 import os
 import pandas as pd
+from Forecasters import TSDatasetGenerator
 from Forecasters.RFForecaster import RFForecaster
 from Forecasters.XGBForecaster import XGBForecaster
 
@@ -34,6 +35,14 @@ all_data = gather_all_data('./Model Data')
 # 4*) Get feature importances and perform feature selection
 # 5) Use best cross validated and grid searched model to run predictions on the test set
 # 6) Get test MSE etc (Model eval proper)
+
+## Generate Lagged Dataset with Forecast Horizon ##
+dataset_transformer = TSDatasetGenerator()
+test_dataset = pd.read_csv('/Users/MacBookPro15/Desktop/Y3SEM2/EC4308/Project/Model Development/Model Data/rec_data_final/rec_data_final_train.csv')
+
+# Create dataset with 3 lags in X (k = 3), 3 lags in y (l = 3) and a 12 step ahead forecast horizon
+dataset_12_3_3 = dataset_transformer.fit_transform(test_dataset, 'Is_Recession', 12, 3, 3)
+dataset_12_3_3
 
 ## Random Forest Tests ##
 # Test run on no lags data
