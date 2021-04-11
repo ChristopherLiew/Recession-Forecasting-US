@@ -53,9 +53,10 @@ class TSDatasetGenerator(TransformerMixin):
             lagged_X.columns = new_col_names
             Store = pd.concat([Store, lagged_X], axis=1)
 
-        # Generate Horizon
-        DatasetWithHorizon = pd.concat([y.shift(-h), Store], axis=1)
-        self.TransformedDataset = DatasetWithHorizon.dropna(axis=0)
+        # Generate new target feature (y) shifted for horizon
+        y_label = y.shift(-h).rename('Target Feature')
+        DatasetWithHorizon = pd.concat([y_label, Store], axis=1)
+        self.TransformedDataset = DatasetWithHorizon.dropna(axis=0).reset_index(drop=True)
 
         # Return dataset
         return self.TransformedDataset

@@ -168,9 +168,8 @@ class XGBForecaster(BaseEstimator, ClassifierMixin):
         check_is_fitted(self)
 
         # Create recursive cross val data
-        if len(self.CrossValData) == 0:
-            self.generate_recursive_folds(n_splits)
-            print("Recursive cross val data generated, number of split: %d" % n_splits)
+        self.generate_recursive_folds(n_splits)
+        print("Recursive cross val data generated, number of split: %d" % n_splits)
 
         # Loop over each training fold
         for dataset in tqdm(self.CrossValData):
