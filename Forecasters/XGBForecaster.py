@@ -202,7 +202,7 @@ class XGBForecaster(BaseEstimator, ClassifierMixin):
         # Compute aggregate feature importance
         model_agg_feat_impt = self.get_cv_feature_importance(model_feat_impt)
 
-        return self.BaseModel, model_predictions, model_log_loss, model_agg_feat_impt
+        return self.BaseModel, model_predictions, model_truth, model_log_loss, model_agg_feat_impt
 
     def generate_grid(self, params_grid):
         """
@@ -218,7 +218,7 @@ class XGBForecaster(BaseEstimator, ClassifierMixin):
         generated_grid = self.generate_grid(self.GridSearchParams)
 
         for g in generated_grid:
-            model, model_log_loss, model_agg_feat_impt = self.train_model_cv(g, n_splits)
+            model, model_predictions, model_truth, model_log_loss, model_agg_feat_impt = self.train_model_cv(g, n_splits)
             # Save if best performer
             if model_log_loss < self.BestScore:
                 self.BestScore = model_log_loss
