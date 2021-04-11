@@ -14,6 +14,12 @@ class TSDatasetGenerator(TransformerMixin):
         self.k = 0
         self.TargetFeature = ""
 
+    def getInfo(self):
+        return "Dataset generator will create a Panel dataset with\n" \
+               "Forecast horizon: %d\n" \
+               "Target variable lags: %d\n" \
+               "Predictor variable lags: %d\n" % (self.h, self.l, self.k)
+
     def fit_transform(self, Dataset, TargetFeature, h, l, k):
         """
         Fits and transform the given dataset. Note: All null observations will be dropped.

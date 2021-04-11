@@ -1,6 +1,6 @@
 import os
 import pandas as pd
-from Forecasters import TSDatasetGenerator
+from Forecasters.TSDatasetGenerator import TSDatasetGenerator
 from Forecasters.RFForecaster import RFForecaster
 from Forecasters.XGBForecaster import XGBForecaster
 
@@ -36,20 +36,20 @@ all_data = gather_all_data('./Model Data')
 # 5) Use best cross validated and grid searched model to run predictions on the test set
 # 6) Get test MSE etc (Model eval proper)
 
-## Generate Lagged Dataset with Forecast Horizon ##
-dataset_transformer = TSDatasetGenerator()
-test_dataset = pd.read_csv('/Users/MacBookPro15/Desktop/Y3SEM2/EC4308/Project/Model Development/Model Data/rec_data_final/rec_data_final_train.csv')
-
-# Create dataset with 3 lags in X (k = 3), 3 lags in y (l = 3) and a 12 step ahead forecast horizon
-dataset_12_3_3 = dataset_transformer.fit_transform(test_dataset, 'Is_Recession', 12, 3, 3)
-dataset_12_3_3
-
 ## Random Forest Tests ##
 # Test run on no lags data
 rec_data_train = all_data['rec_data_final']['rec_data_final_train.csv'].dropna()
 X_train, y_train = rec_data_train.drop(columns=['DATE', 'Is_Recession']), rec_data_train['Is_Recession']
 rec_data_test = all_data['rec_data_final']['rec_data_final_test.csv']
 X_test, y_test = rec_data_test.drop(columns=['DATE', 'Is_Recession']), rec_data_test['Is_Recession']
+
+## Generate Lagged Dataset with Forecast Horizon ##
+dataset_transformer = TSDatasetGenerator()
+test_dataset = rec_data_train.copy()
+
+# Create dataset with 3 lags in X (k = 3), 3 lags in y (l = 3) and a 12 step ahead forecast horizon
+dataset_12_3_3 = dataset_transformer.fit_transform(test_dataset, 'Is_Recession', 12, 3, 3)
+dataset_transformer.getInfo() # Info on params
 
 # Set params for RF model
 rf_params = {
