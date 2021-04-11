@@ -136,7 +136,7 @@ class RFForecaster(BaseEstimator, ClassifierMixin):
         Trains our model using recursive cross validation.
         :param rf_params: Random Forest classifier parameters.
         :param n_splits: Default = 10.
-        :return: None. Use getter to obtain best model.
+        :return: Model, Model Predictions, Model Log Loss and Feature importances
         """
         # Placeholders for predictions
         model_predictions = []
@@ -173,7 +173,7 @@ class RFForecaster(BaseEstimator, ClassifierMixin):
         # Compute aggregate feature importance
         model_agg_feat_impt = self.get_cv_feature_importance(model_feat_impt)
 
-        return self.BaseModel, model_log_loss, model_agg_feat_impt
+        return self.BaseModel, model_predictions, model_log_loss, model_agg_feat_impt
 
     def generate_grid(self, params_grid):
         """
