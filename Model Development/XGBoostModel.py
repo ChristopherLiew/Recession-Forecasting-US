@@ -48,6 +48,17 @@ test_1_2_1_y = test_1_2_1['Target Feature']
 y_pred = model.predict(np.asmatrix(test_1_2_1_X))
 genClassificationRep(test_1_2_1_y, y_pred)
 
+## 3 STEP AHEAD FORECAST
+# 1) h = 3, k = 2, l = 2 (Kauppi's best pseudo R^2 parameters)
+train_3_2_1 = dataset_generator.fit_transform(train_data, 'Is_Recession', h=3, k=2, l=1)
+train_3_2_1_X = train_3_2_1.drop(columns=['Target Feature'])
+train_3_2_1_y = train_3_2_1['Target Feature']
+
+xgb3 = XGBForecaster()
+xgb3 = xgb3.fit(train_3_2_1_X, train_3_2_1_y)
+model3, model_pred3, model_truth3, cv_result3, feat_impt3 = xgb3.train_model_cv(xg_params, n_splits=300)
+genClassificationRep(model_truth3, model_pred3)
+
 ## 6 STEP AHEAD FORECAST
 # 1) h = 6, k = 2, l = 2 (Kauppi's best pseudo R^2 parameters)
 train_6_2_1 = dataset_generator.fit_transform(train_data, 'Is_Recession', h=6, k=2, l=1)
@@ -58,3 +69,14 @@ xgb6 = XGBForecaster()
 xgb6 = xgb6.fit(train_6_2_1_X, train_6_2_1_y)
 model6, model_pred6, model_truth6, cv_result6, feat_impt6 = xgb6.train_model_cv(xg_params, n_splits=300)
 genClassificationRep(model_truth6, model_pred6)
+
+## 12 STEP AHEAD FORECAST
+# 1) h = 12, k = 2, l = 2 (Kauppi's best pseudo R^2 parameters)
+train_12_2_1 = dataset_generator.fit_transform(train_data, 'Is_Recession', h=12, k=2, l=1)
+train_12_2_1_X = train_12_2_1.drop(columns=['Target Feature'])
+train_12_2_1_y = train_12_2_1['Target Feature']
+
+xgb12 = XGBForecaster()
+xgb12 = xgb12.fit(train_12_2_1_X, train_12_2_1_y)
+model12, model_pred12, model_truth12, cv_result12, feat_impt12 = xgb12.train_model_cv(xg_params, n_splits=300)
+genClassificationRep(model_truth12, model_pred12)
