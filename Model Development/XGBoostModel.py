@@ -2,81 +2,121 @@
 ## Import relevant libraries
 import pandas as pd
 import numpy as np
-from Forecasters import TSDatasetGenerator
+from Forecasters import TSDatasetGenerator, RFForecaster
 from Forecasters.XGBForecaster import XGBForecaster
 from sklearn.metrics import confusion_matrix, plot_confusion_matrix, classification_report
 
 ## Load datasets
-train_data = pd.read_csv('Data/rec_train_final.csv').drop(columns=['Unnamed: 0'])
-test_data = pd.read_csv('Data/rec_test_final.csv').drop(columns=['Unnamed: 0'])
+# Without DATE col
+train_data = pd.read_csv('Data/rec_train.csv').drop(columns=['Unnamed: 0', 'DATE'])
+test_data = pd.read_csv('Data/rec_test.csv').drop(columns=['Unnamed: 0', 'DATE'])
 
-## Create datasets
-dataset_generator = TSDatasetGenerator()
+# With DATE col (For sanity check)
+train_data_date = pd.read_csv('Data/rec_train.csv').drop(columns=['Unnamed: 0'])
+test_data_date = pd.read_csv('Data/rec_test.csv').drop(columns=['Unnamed: 0'])
+
 
 ## Auxiliary function to generate Classification Report
 def genClassificationRep(y_true, y_pred):
     return pd.DataFrame(classification_report(y_true, y_pred, output_dict=True))
 
-## 1 STEP AHEAD FORECAST
-# 1) h = 1, k = 2, l = 2 (Kauppi's best pseudo R^2 parameters)
-train_1_2_1 = dataset_generator.fit_transform(train_data, 'Is_Recession', h=1, k=2, l=1)
-train_1_2_1_X = train_1_2_1.drop(columns=['Target Feature'])
-train_1_2_1_y = train_1_2_1['Target Feature']
 
-# XGBoost Grid Search + recursive cross val on lagged data
+## Grid Search Candidate Parameters
 xg_params_grid = {'objective': ['binary:logistic'],
-                  'n_estimators': [100, 300, 500],
-                  'max_depth': [2, 4, 6],
+                  'n_estimators': [100, 300],
+                  'max_depth': [2, 4],
+                  # Controls for overfitting (build shallow trees, Gamma can be considered as well)
+                  'colsample_bytree': [0.8, 1.0],  # Adds randomness for noise robustness
                   'seed': [42],
-                  'missing': [None],
+                  'missing': [None],  # None as we do not have any missing data
                   'importance_type': ['gain']}
 
-xg_params = {'objective': 'binary:logistic',
-             'seed': 42,
-             'missing': None}
 
-xgb = XGBForecaster()
-xgb = xgb.fit(train_1_2_1_X, train_1_2_1_y)
-model, model_pred, model_truth, cv_result, feat_impt = xgb.train_model_cv(xg_params, n_splits=300)
-genClassificationRep(model_truth, model_pred)
+## Auxiliary function to train models and log results for various combinations of h, k and l
+def runBehemoth(grid_params, data, target_feature, n_splits, model='XGB', h=1, k_range=[], l_range=[]):
+    results = []
+    label_index = []
 
-# Test set results
-test_1_2_1 = dataset_generator.fit_transform(test_data, 'Is_Recession', h=1, k=2, l=1)
-test_1_2_1_X = test_1_2_1.drop(columns=['Target Feature'])
-test_1_2_1_y = test_1_2_1['Target Feature']
+    # Instantiate dataset generator
+    dataset_generator = TSDatasetGenerator()
 
-y_pred = model.predict(np.asmatrix(test_1_2_1_X))
-genClassificationRep(test_1_2_1_y, y_pred)
+    # Loop over all combinations of k and l
+    for k in k_range:
+        for l in l_range:
+            # Instantiate model
+            if model == 'XGB':
+                selected_model = XGBForecaster()
+            elif model == 'RF':
+                selected_model = RFForecaster()
+            else:
+                print('Please select a valid model: RF or XGB')
+                return None
 
-## 3 STEP AHEAD FORECAST
-# 1) h = 3, k = 2, l = 2 (Kauppi's best pseudo R^2 parameters)
-train_3_2_1 = dataset_generator.fit_transform(train_data, 'Is_Recession', h=3, k=2, l=1)
-train_3_2_1_X = train_3_2_1.drop(columns=['Target Feature'])
-train_3_2_1_y = train_3_2_1['Target Feature']
+            # Label for output (h, k, l)
+            res_label = "(h=%d, k=%d, l=%d)" % (h, k, l)
+            print("Running grid search for the dataset with params: " + res_label)
+            # Create datasets
+            train = dataset_generator.fit_transform(data, target_feature, h, k, l)
+            train_X = train.drop(columns=['Target Feature'])
+            train_y = train['Target Feature']
 
-xgb3 = XGBForecaster()
-xgb3 = xgb3.fit(train_3_2_1_X, train_3_2_1_y)
-model3, model_pred3, model_truth3, cv_result3, feat_impt3 = xgb3.train_model_cv(xg_params, n_splits=300)
-genClassificationRep(model_truth3, model_pred3)
+            # Fit model
+            fitted_model = selected_model.fit(train_X, train_y)
+            fitted_model.grid_search_CV(grid_params, n_splits=n_splits)
 
-## 6 STEP AHEAD FORECAST
-# 1) h = 6, k = 2, l = 2 (Kauppi's best pseudo R^2 parameters)
-train_6_2_1 = dataset_generator.fit_transform(train_data, 'Is_Recession', h=6, k=2, l=1)
-train_6_2_1_X = train_6_2_1.drop(columns=['Target Feature'])
-train_6_2_1_y = train_6_2_1['Target Feature']
+            # Log results
+            result = {}
+            result['Best score (log-loss)'] = fitted_model.getBestScore()
+            result['Best params'] = fitted_model.getBestParams()
+            result['Best model'] = fitted_model.getBestModel()
+            result['Feature Importance'] = fitted_model.getFeatureImportance()
+            results.append(result)
+            label_index.append(res_label)
 
-xgb6 = XGBForecaster()
-xgb6 = xgb6.fit(train_6_2_1_X, train_6_2_1_y)
-model6, model_pred6, model_truth6, cv_result6, feat_impt6 = xgb6.train_model_cv(xg_params, n_splits=300)
-genClassificationRep(model_truth6, model_pred6)
+    labels_index = pd.DataFrame(label_index, columns=['Dataset'])
+    results_final = pd.DataFrame(results)
+    collected_results = pd.concat([labels_index, results_final], axis=1)
+    return collected_results
 
-## 12 STEP AHEAD FORECAST
-# 1) h = 12, k = 2, l = 2 (Kauppi's best pseudo R^2 parameters)
-train_12_2_1 = dataset_generator.fit_transform(train_data, 'Is_Recession', h=12, k=2, l=1)
-train_12_2_1_X = train_12_2_1.drop(columns=['Target Feature'])
-train_12_2_1_y = train_12_2_1['Target Feature']
+## 1 Step Ahead Forecast
+one_step_results = runBehemoth(xg_params_grid,
+                               train_data,
+                               'Is_Recession',
+                               300,
+                               k_range=[1, 2, 3, 4, 5, 6],
+                               l_range=[1, 2, 3, 4, 5, 6])
+## Write out results
+one_step_results.to_csv('one_step_xg_results.csv', index=False)
 
-xgb12 = XGBForecaster()
-xgb12 = xgb12.fit(train_12_2_1_X, train_12_2_1_y)
-model12, model_pred12, model_truth12, cv_result12, feat_impt12 = xgb12.train_model_cv(xg_params, n_splits=300)
-genClassificationRep(model_truth12, model_pred12)
+## 3 Step Ahead Forecast
+three_step_results = runBehemoth(xg_params_grid,
+                                 train_data,
+                                 'Is_Recession',
+                                 300,
+                                 k_range=[1, 2, 3, 4, 5, 6],
+                                 l_range=[1, 2, 3, 4, 5, 6])
+
+## Write out results
+three_step_results.to_csv('three_step_xg_results.csv', index=False)
+
+## 6 Step Ahead Forecast
+six_step_results = runBehemoth(xg_params_grid,
+                               train_data,
+                               'Is_Recession',
+                               300,
+                               k_range=[1, 2, 3, 4, 5, 6],
+                               l_range=[1, 2, 3, 4, 5, 6])
+
+## Write out results
+six_step_results.to_csv('six_step_xg_results.csv', index=False)
+
+## 12 Step Ahead Forecast
+twelve_step_results = runBehemoth(xg_params_grid,
+                                  train_data,
+                                  'Is_Recession',
+                                  300,
+                                  k_range=[1, 2, 3, 4, 5, 6],
+                                  l_range=[1, 2, 3, 4, 5, 6])
+
+## Write out results
+twelve_step_results.to_csv('twelve_step_xg_results.csv', index=False)
