@@ -42,7 +42,7 @@ def plot_recession_curve(dates, y_pred, data_type, h, l, k):
                        label="Recession", color="red", alpha=0.3)
     ax.set_title("Probability of Recession Occurring: {}-month forecast - {} data ({} y-lags, {} x-lags)".format(h, data_type, l, k))
     ax.legend(["Predicted", "Actual"])
-    ax.set_xticks(np.arange(12 - h, len(dates), 24))
+    ax.set_xticks(np.arange(12 - h, len(formatted_dates), 24))
     ax.tick_params(axis='x', labelrotation=45)
     ax.set_ylim([0, 1.05])
     plt.show()
@@ -110,18 +110,18 @@ for i in forecasts:
             print(cm)
             accuracy = accuracy_score(y_test,y_pred_classes)
             print("Accuracy: " + str(accuracy))
-            is_lloss = log_loss(np.array(y_train), np.array(y_pred_train))
+            is_lloss = log_loss(np.array(y_train), np.array(y_pred_train_classes))
             print("In-sample Log loss: " + str(is_lloss))
-            oos_lloss = log_loss(np.array(y_test), np.array(y_pred_test))
+            oos_lloss = log_loss(np.array(y_test), np.array(y_pred_classes))
             print("Out-of-sample Log loss: " + str(oos_lloss))
             accuracies[idx].append(accuracy)
             is_log_losses[idx].append(is_lloss)
             oos_log_losses[idx].append(oos_lloss)
             
             # plot model performance on the training and test sets
-            plot_recession_curve(train_dates, y_pred_train, 'Train', i, l, k)
+            plot_recession_curve(train_dates, y_pred_train_classes, 'Train', i, l, k)
             #plot_recession_curve(train_dates, y_train, 'Train', i, l, k)
-            plot_recession_curve(test_dates, y_pred_test, 'Test', i, l, k)
+            plot_recession_curve(test_dates, y_pred_classes, 'Test', i, l, k)
             #plot_recession_curve(test_dates, y_test, 'Test', i, l, k)
             
             # display precision recall curves in-sample and out-of-sample
