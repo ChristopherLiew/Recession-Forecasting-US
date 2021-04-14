@@ -11,7 +11,7 @@ import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
 import statsmodels.api as sm
-from sklearn.metrics import accuracy_score,confusion_matrix,log_loss
+from sklearn.metrics import accuracy_score,confusion_matrix,log_loss, classification_report, precision_recall_curve, f1_score, auc
 from statsmodels.discrete.discrete_model import Probit
 from Forecasters.TSDatasetGenerator import TSDatasetGenerator
 
@@ -27,6 +27,8 @@ pr_squared = []
 is_log_losses = []
 oos_log_losses = []
 accuracies = []
+cf_reports_train = []
+cf_reports_test = []
 test = generator.fit_transform(rec_train, target, 1, 0, 2)
 forecasts = [1, 3, 6, 12]
 idx = 0
@@ -35,6 +37,8 @@ for i in forecasts:
     is_log_losses.append([])
     oos_log_losses.append([])
     accuracies.append([])
+    cf_reports_train.append([])
+    cf_reports_test.append([])
     for l in range(0, 4):
         for k in range(0, 4):
             # generate data with relevant forecast horizon, dependent variable lag and predictor lags
@@ -60,10 +64,13 @@ for i in forecasts:
             X_test, y_test = rec_data_test.drop(columns=['Target Feature']), rec_data_test['Target Feature']
             X_test = sm.add_constant(X_test)
             y_pred_train = model.predict(X_train)
+            y_pred_train_classes = np.where(y_pred_train > 0.5,1,0)
             y_pred_test = model.predict(X_test)
             y_pred_classes = np.where(y_pred_test > 0.5,1,0)
             
             #Evaluate in-sample and OOS performance
+            cf_reports_train[idx].append(pd.DataFrame(classification_report(y_train, y_pred_train_classes, output_dict=True)))
+            cf_reports_test[idx].append(pd.DataFrame(classification_report(y_test, y_pred_classes, output_dict=True)))
             cm = confusion_matrix(y_test,y_pred_classes)
             print("Confusion matrix:")
             print(cm)
@@ -93,5 +100,23 @@ for i in forecasts:
             plt.xticks(np.arange(12-i, len(test_dates), 24), rotation=45) 
             plt.show()
             
+            # display precision recall curves in-sample and out-of-sample
+            precision_train, recall_train, _ = precision_recall_curve(y_train, y_pred_train)
+            plt.plot(recall_train, precision_train, marker='.')
+            plt.xlabel('Recall')
+            plt.ylabel('Precision')
+            plt.legend(['Probit'])
+            plt.title("Precision-recall curve: {}-month forecast - train data ({} y-lags, {} x-lags)".format(i,l,k))
+            plt.show()
+            
+            precision_test, recall_test, _ = precision_recall_curve(y_test, y_pred_test)
+            plt.plot(recall_test, precision_test, marker='.')
+            plt.xlabel('Recall')
+            plt.ylabel('Precision')
+            plt.legend(['Probit'])
+            plt.title("Precision-recall curve: {}-month forecast - test data ({} y-lags, {} x-lags)".format(i,l,k))
+            plt.show()
+            
     idx += 1
             
+
