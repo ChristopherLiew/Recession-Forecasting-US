@@ -4,7 +4,6 @@ import pandas as pd
 import numpy as np
 from Forecasters import TSDatasetGenerator, RFForecaster
 from Forecasters.XGBForecaster import XGBForecaster
-from sklearn.metrics import confusion_matrix, plot_confusion_matrix, classification_report
 
 ## Load datasets
 # Without DATE col
@@ -14,12 +13,6 @@ test_data = pd.read_csv('Data/rec_test.csv').drop(columns=['Unnamed: 0', 'DATE']
 # With DATE col (For sanity check)
 train_data_date = pd.read_csv('Data/rec_train.csv').drop(columns=['Unnamed: 0'])
 test_data_date = pd.read_csv('Data/rec_test.csv').drop(columns=['Unnamed: 0'])
-
-
-## Auxiliary function to generate Classification Report
-def genClassificationRep(y_true, y_pred):
-    return pd.DataFrame(classification_report(y_true, y_pred, output_dict=True))
-
 
 ## Grid Search Candidate Parameters
 xg_params_grid = {'objective': ['binary:logistic'],
@@ -78,13 +71,15 @@ def runBehemoth(grid_params, data, target_feature, n_splits, model='XGB', h=1, k
     collected_results = pd.concat([labels_index, results_final], axis=1)
     return collected_results
 
+
 ## 1 Step Ahead Forecast
 one_step_results = runBehemoth(xg_params_grid,
                                train_data,
                                'Is_Recession',
                                300,
-                               k_range=[1, 2, 3, 4, 5, 6],
-                               l_range=[1, 2, 3, 4, 5, 6])
+                               h=1,
+                               k_range=[1, 2, 3],
+                               l_range=[1, 2, 3])
 ## Write out results
 one_step_results.to_csv('one_step_xg_results.csv', index=False)
 
@@ -93,8 +88,9 @@ three_step_results = runBehemoth(xg_params_grid,
                                  train_data,
                                  'Is_Recession',
                                  300,
-                                 k_range=[1, 2, 3, 4, 5, 6],
-                                 l_range=[1, 2, 3, 4, 5, 6])
+                                 h=3,
+                                 k_range=[1, 2, 3],
+                                 l_range=[1, 2, 3])
 
 ## Write out results
 three_step_results.to_csv('three_step_xg_results.csv', index=False)
@@ -104,8 +100,9 @@ six_step_results = runBehemoth(xg_params_grid,
                                train_data,
                                'Is_Recession',
                                300,
-                               k_range=[1, 2, 3, 4, 5, 6],
-                               l_range=[1, 2, 3, 4, 5, 6])
+                               h=6,
+                               k_range=[1, 2, 3],
+                               l_range=[1, 2, 3])
 
 ## Write out results
 six_step_results.to_csv('six_step_xg_results.csv', index=False)
@@ -115,8 +112,134 @@ twelve_step_results = runBehemoth(xg_params_grid,
                                   train_data,
                                   'Is_Recession',
                                   300,
-                                  k_range=[1, 2, 3, 4, 5, 6],
-                                  l_range=[1, 2, 3, 4, 5, 6])
+                                  h=12,
+                                  k_range=[1, 2, 3],
+                                  l_range=[1, 2, 3])
 
 ## Write out results
 twelve_step_results.to_csv('twelve_step_xg_results.csv', index=False)
+
+## Multi Steps but with 0 lags (h = 1, 3, 6 and 12; k = 0; l = 0)
+one_step_results_0_l = runBehemoth(xg_params_grid,
+                                   train_data,
+                                   'Is_Recession',
+                                   300,
+                                   h=1,
+                                   k_range=[1, 2, 3, 4, 5, 6],
+                                   l_range=[0])
+
+one_step_results_0_l.to_csv('one_step_xg_results_0.csv', index=False)
+
+three_step_results_0 = runBehemoth(xg_params_grid,
+                                   train_data,
+                                   'Is_Recession',
+                                   300,
+                                   h=3,
+                                   k_range=[0],
+                                   l_range=[0])
+
+three_step_results_0.to_csv('three_step_xg_results_0.csv', index=False)
+
+six_step_results_0 = runBehemoth(xg_params_grid,
+                                 train_data,
+                                 'Is_Recession',
+                                 300,
+                                 h=6,
+                                 k_range=[0],
+                                 l_range=[0])
+
+six_step_results_0.to_csv('six_step_xg_results_0.csv', index=False)
+
+twelve_step_results_0 = runBehemoth(xg_params_grid,
+                                    train_data,
+                                    'Is_Recession',
+                                    300,
+                                    h=12,
+                                    k_range=[0],
+                                    l_range=[0])
+
+twelve_step_results_0.to_csv('twelve_step_xg_results_0.csv', index=False)
+
+## Multi Step 0s (Remainder)
+one_step_results_k0_l = runBehemoth(xg_params_grid,
+                                    train_data,
+                                    'Is_Recession',
+                                    300,
+                                    h=1,
+                                    k_range=[0],
+                                    l_range=[1, 2, 3])
+
+one_step_results_k0_l.to_csv('one_step_results_k0_l.csv', index=False)
+
+one_step_results_l0_k = runBehemoth(xg_params_grid,
+                                    train_data,
+                                    'Is_Recession',
+                                    300,
+                                    h=1,
+                                    k_range=[1, 2, 3],
+                                    l_range=[0])
+
+one_step_results_l0_k.to_csv('one_step_results_l0_k.csv', index=False)
+
+# 3 step
+three_step_results_k0_l = runBehemoth(xg_params_grid,
+                                      train_data,
+                                      'Is_Recession',
+                                      300,
+                                      h=3,
+                                      k_range=[0],
+                                      l_range=[1, 2, 3])
+
+three_step_results_k0_l.to_csv('three_step_results_k0_l.csv', index=False)
+
+three_step_results_l0_k = runBehemoth(xg_params_grid,
+                                      train_data,
+                                      'Is_Recession',
+                                      300,
+                                      h=3,
+                                      k_range=[1, 2, 3],
+                                      l_range=[0])
+
+three_step_results_l0_k.to_csv('three_step_results_l0_k.csv', index=False)
+
+# 6 step
+six_step_results_k0_l = runBehemoth(xg_params_grid,
+                                    train_data,
+                                    'Is_Recession',
+                                    300,
+                                    h=6,
+                                    k_range=[0],
+                                    l_range=[1, 2, 3])
+
+six_step_results_k0_l.to_csv('six_step_results_k0_l.csv', index=False)
+
+six_step_results_l0_k = runBehemoth(xg_params_grid,
+                                    train_data,
+                                    'Is_Recession',
+                                    300,
+                                    h=6,
+                                    k_range=[1, 2, 3],
+                                    l_range=[0])
+
+six_step_results_l0_k.to_csv('six_step_results_l0_k.csv', index=False)
+
+# 12 step
+twelve_step_results_k0_l = runBehemoth(xg_params_grid,
+                                       train_data,
+                                       'Is_Recession',
+                                       300,
+                                       h=12,
+                                       k_range=[0],
+                                       l_range=[1, 2, 3])
+
+twelve_step_results_k0_l.to_csv('twelve_step_results_k0_l.csv', index=False)
+
+twelve_step_results_l0_k = runBehemoth(xg_params_grid,
+                                       train_data,
+                                       'Is_Recession',
+                                       300,
+                                       h=12,
+                                       k_range=[1, 2, 3],
+                                       l_range=[0])
+
+twelve_step_results_l0_k.to_csv('twelve_step_results_l0_k.csv', index=False)
